@@ -98,7 +98,7 @@ BB.confound <- function(x,y,w) {
     while (length(queue) > 0) {
       nodes.visited[iter_no] <- nodes.visited[iter_no] + 1
       # Progress update
-      if (nodes.visited[iter_no] %% 100 == 0) {
+      if (nodes.visited[iter_no] %% 2000 == 0) {
         print(paste0("Progress (", Sys.time(), "): ", nodes.visited[iter_no], " visited. ", length(queue), " on stack."))
       }
       
@@ -196,7 +196,7 @@ BB.confound.reorder <- function(x,y,w) {
     while (length(queue) > 0) {
       nodes.visited[iter_no] <- nodes.visited[iter_no] + 1
       # Progress update
-      if (nodes.visited[iter_no] %% 100 == 0) {
+      if (nodes.visited[iter_no] %% 2000 == 0) {
         print(paste0("Progress (", Sys.time(), "): ", nodes.visited[iter_no], " visited. ", length(queue), " on stack."))
       }
       
