@@ -170,7 +170,7 @@ BB.confound <- function(x,y,w) {
   return(confound.int)
 }
 
-# Branch and Bound (BBR) Algorithm
+# Branch and Bound with Reordering (BBR) Algorithm
 BB.confound.reorder <- function(x,y,w) {
   start <- Sys.time()
   w <- data.frame(w)
