@@ -23,7 +23,7 @@ calc.I.res <- function(w, J, I) {
   return(data.frame(I.res))
 }
 
-# Confoudning interval function supplied by Knaeble
+# Confounding interval function supplied by Knaeble
 # Found at https://github.com/bknaeble/ConfoundingIntervals/tree/master
 f=function(p,sr,lx2,ux2,ly2,uy2,lxy,uxy) {
   tol=.00001
