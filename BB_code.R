@@ -72,7 +72,7 @@ f=function(p,sr,lx2,ux2,ly2,uy2,lxy,uxy) {
 }
 
 # Branch and Bound Algorithm             
-BB.confound.reorder <- function(x,y,s) {
+BB.confound <- function(x,y,s) {
   start <- Sys.time()
   # Initialize "Node" class
   setClass("Node", slots = list(beta = "ANY", x.res = "ANY", y.res = "ANY", z.res = "ANY", I.w = "ANY", I.z = "ANY"))
