@@ -1,26 +1,25 @@
 # This file provides open source software to support the methodologies of the paper
 # Branch and Bound to Assess Stability of Regression Coefficients in Uncertain Models
-# by Knaeble, Razo, Hughes, and Abramson
+# by Knaeble, Hughes, Rudolph, Abramson, and Razo
 
 # See README for details
 
-# Helper function to calculate residuals of I
-calc.I.res <- function(w, J, I) {
-  I.res <- matrix(nrow = nrow(w), ncol = length(I))
-  if (length(J) == 0) { # Check for root node
-    # Create matrix of residuals from centering vectors of I
-    for (i in I) {
-      I.res[,which(I == i)] <- lm(w[,i]~1)$residuals
-    }
-  } else if (length(I) == 0) { # Check for leaf node
-    return(NULL)
+# Helper function to calculate residuals of z
+calc.z.res <- function(s, I.w, I.z) { # I.w <- c(1,4)     # I.z <- c(2,3,5)
+  z.res <- matrix(nrow = nrow(s), ncol = length(I.z))
+  if (length(I.w) == 0) { # Check for root node
+    # Create matrix of residuals from centering vectors of z
+    return(data.frame(apply(s,2,function(x) x - mean(x))))
+  } else if (length(I.z) == 0) { # Check for leaf node
+    return(data.frame(matrix(nrow = nrow(s), ncol = 0)))
+    # return(NULL)
   } else { # Intermediate node
-    # Create matrix of residuals from regressing vectors of I onto span of J
-    for (i in I) {
-      I.res[,which(I == i)] <- lm(w[,i]~., data = w[J])$residuals
+    # Create matrix of residuals from regressing vectors of z onto span of w
+    for (z in I.z) {
+      z.res[,which(I.z == z)] <- lm(s[,z]~., data = s[I.w])$residuals
     }
   }
-  return(data.frame(I.res))
+  return(data.frame(z.res))
 }
 
 # Confounding interval function supplied by Knaeble
@@ -68,211 +67,88 @@ f=function(p,sr,lx2,ux2,ly2,uy2,lxy,uxy) {
   fs=apply(M,1,feas)
   N=M[which(fs==TRUE),]
   obj=function(arg) sr*(p-sqrt(arg[1])*sqrt(arg[2])*arg[3])/(1-arg[1])
-  l=min(apply(N,1,obj), na.rm = TRUE) # I added "na.rm = TRUE"
-  u=max(apply(N,1,obj), na.rm = TRUE) # I added "na.rm = TRUE"
+  l=min(apply(N,1,obj), na.rm = TRUE)
+  u=max(apply(N,1,obj), na.rm = TRUE)
   return(c(l,u))
 }
 
-# Branch and Bound (BB) Algorithm
-BB.confound <- function(x,y,w) {
+# Branch and Bound Algorithm             
+BB.confound.reorder <- function(x,y,s) {
   start <- Sys.time()
-  w <- data.frame(w)
   # Initialize "Node" class
-  setClass("Node", slots = list(J = "ANY", I = "ANY", beta = "ANY", depth = "numeric",
-                                x.res = "ANY", y.res = "ANY", I.res = "ANY"))
+  setClass("Node", slots = list(beta = "ANY", x.res = "ANY", y.res = "ANY", z.res = "ANY", I.w = "ANY", I.z = "ANY"))
+
   # Initialize variables
-  max.depth <- ncol(w)
-  nodes.visited <- rep(0,2)
-  confound.int <- NULL
-  min.J <- NULL
-  max.J <- NULL
+  s <- data.frame(s)
+  nodes.visited <- 0
+  temp.min <- temp.max <- lm(y ~ x)$coef[2]
+
+  # Initial node
+  queue <- list(new("Node",
+                    x.res = x - mean(x),
+                    y.res = y - mean(y),
+                    z.res = calc.z.res(s,numeric(0),1:ncol(s)),
+                    I.w = numeric(0),
+                    I.z = 1:ncol(s))
+           )
   
-  # iter_no = 1 for min, iter_no = 2 for max
-  for (iter_no in 1:2) {
-    print(paste0("Starting ", c("min","max")[iter_no], " (", Sys.time(), ")"))
-    # Root node
-    root <- new("Node", J = numeric(0), I = 1:max.depth, depth = 0, x.res = lm(x~1)$residuals,
-                y.res = lm(y~1)$residuals, I.res = calc.I.res(w, numeric(0), 1:max.depth))
-    current.best <- root@beta <- lm(root@y.res~root@x.res)$coef[2] * (-1)^(iter_no+1)
-    queue <- list(root)
-    while (length(queue) > 0) {
-      nodes.visited[iter_no] <- nodes.visited[iter_no] + 1
-      # Progress update
-      if (nodes.visited[iter_no] %% 2000 == 0) {
-        print(paste0("Progress (", Sys.time(), "): ", nodes.visited[iter_no], " visited. ", length(queue), " on stack."))
-      }
-      
-      # Take first node out of queue
-      current <- queue[[1]]
-      queue <- queue[-1]
-      
-      # Check to see if max.depth reached (leaf node)
-      if (current@depth == max.depth) {
-        next
-      }
-      
-      # Check to see if we should add child nodes to the queue
-      # Save x.res, y.res, and I.res (minus one column) for left child since it is the same
-      for (node in list(new("Node", J = c(current@J,current@I[1]), I = current@I[-1], depth = current@depth+1),
-                        new("Node", J = current@J, I = current@I[-1], beta = current@beta, depth = current@depth+1,
-                            x.res = current@x.res, y.res = current@y.res,
-                            I.res = if(current@depth < max.depth - 1) current@I.res[,-1, drop = FALSE]))) {
-        # Calculate x.res, y.res, and I.res for right child
-        if (is.null(node@beta)) {
-          node@x.res <- lm(x~., data = w[node@J])$residuals
-          node@y.res <- lm(y~., data = w[node@J])$residuals
-          node@I.res <- calc.I.res(w, node@J, node@I)
-        }
-        
-        # Calculate r2.wI.x, r2.wI.y
-        if (!is.null(node@I.res)) {
-          r2.wI.x <- summary(lm(node@x.res~., data = node@I.res))$r.squared
-          r2.wI.y <- summary(lm(node@y.res~., data = node@I.res))$r.squared
-        } else {
-          r2.wI.x <- 0
-          r2.wI.y <- 0
-        }
-        
-        # Confounding Interval
-        b <- suppressWarnings(f(cor(node@x.res,node@y.res), sd(node@y.res) / sd(node@x.res),
-                                0, r2.wI.x, 0, r2.wI.y, -1, 1))[iter_no] * (-1)^(iter_no+1)
-        if (b < current.best) {
-          # Calculate beta.x and update current.best if applicable
-          if (is.null(node@beta)) {
-            node@beta <- as.numeric(lm(node@y.res ~ node@x.res)$coef[2]) * (-1)^(iter_no+1)
-            if (current.best > node@beta) {
-              if (iter_no == 1) {
-                min.J <- node@J
-              } else {
-                max.J <- node@J
-              }
-            }
-            current.best <- min(current.best, node@beta)
-          }
-          # Put node in queue if the lower bound is less than current.best
-          queue <- c(queue, node)
-        }
+  while (length(queue) > 0) {
+    nodes.visited <- nodes.visited + 1
+    # Progress update
+    if (nodes.visited %% 2000 == 0) {
+      print(paste0("Progress (", Sys.time(), "): ", nodes.visited, " visited. ", length(queue), " in queue."))
+    }
+    # Take first node out of the queue
+    current <- queue[[1]]
+    queue <- queue[-1]
+    
+    # Calculate beta.x for current node if not already done
+    if (is.null(current@beta)) {
+      current@beta <- as.numeric(lm(current@y.res ~ current@x.res)$coef[2])
+      temp.min <- min(temp.min, current@beta)
+      temp.max <- max(temp.max, current@beta)
+    }
+
+    # Find R^2 bounds
+    if (length(current@I.z) > 0) {
+      upper.r2.x <- summary(lm(current@x.res~., data = current@z.res))$r.squared
+      upper.r2.y <- summary(lm(current@y.res~., data = current@z.res))$r.squared
+    } else {
+      upper.r2.x <- upper.r2.y <- 0
+    }
+    # Compute confounding interval
+    b <- suppressWarnings(f(cor(current@x.res,current@y.res), sd(current@y.res) / sd(current@x.res), 0, upper.r2.x, 0, upper.r2.y, -1, 1))
+    if (b[1] < temp.min || b[2] > temp.max) {
+      # Add child nodes to queue if current is not leaf
+      if (length(current@I.z) > 0) {
+
+        # Calculate z.star
+        product <- abs(cor(current@x.res, current@z.res) * cor(current@y.res, current@z.res))
+        z.star <- which(product == max(product))
+
+        # Add child nodes to queue
+        queue <- c(queue,
+                   new("Node",
+                       beta = current@beta,
+                       x.res = current@x.res,
+                       y.res = current@y.res,
+                       z.res = current@z.res[-z.star],
+                       I.w = current@I.w,
+                       I.z = current@I.z[-z.star]),
+                   new("Node",
+                       x.res = lm(x~., data = s[c(current@I.w, current@I.z[z.star])])$residuals,
+                       y.res = lm(y~., data = s[c(current@I.w, current@I.z[z.star])])$residuals,
+                       z.res = calc.z.res(s, c(current@I.w, current@I.z[z.star]), current@I.z[-z.star]),
+                       I.w = c(current@I.w, current@I.z[z.star]),
+                       I.z = current@I.z[-z.star]
+                       )
+                   )
       }
     }
-    confound.int <- c(confound.int, current.best * (-1)^(iter_no+1))
   }
   end <- Sys.time()
-  print("------------------------")
-  print(paste0("Find min: ", nodes.visited[1], " of ", (2^(max.depth+1)-1), " nodes visited (", round(nodes.visited[1] / (2^(max.depth+1)-1) * 100,2), "%)"))
-  print(paste("Min vars:", paste(colnames(w)[sort(min.J)], collapse = ",")))
-  print("----------")
-  print(paste0("Find max: ", nodes.visited[2], " of ", (2^(max.depth+1)-1), " nodes visited (", round(nodes.visited[2] / (2^(max.depth+1)-1) * 100,2), "%)"))
-  print(paste("Max vars:", paste(colnames(w)[sort(max.J)], collapse = ",")))
-  print("----------")
-  print(paste(sum(nodes.visited), "total nodes visited."))
-  print(paste("Total Time elapsed:", as.numeric(difftime(end, start, units = "secs")), "seconds"))
-  print("------------------------")
-  return(confound.int)
+  # Output results
+  print(paste0("Nodes Visited: ", nodes.visited, " of ", (2^(ncol(s)+1)-1), " (", round(nodes.visited / (2^(ncol(s)+1)-1) * 100,2), "%)"))
+  print(paste("Time elapsed: ", round(as.numeric(difftime(end, start, units = "secs")),5), "seconds"))
+  return(c(temp.min, temp.max))
 }
-
-# Branch and Bound with Reordering (BBR) Algorithm
-BB.confound.reorder <- function(x,y,w) {
-  start <- Sys.time()
-  w <- data.frame(w)
-  # Initialize "Node" class
-  setClass("Node", slots = list(J = "ANY", I = "ANY", beta = "ANY", depth = "numeric",
-                                x.res = "ANY", y.res = "ANY", I.res = "ANY"))  
-  # Initialize variables
-  max.depth <- ncol(w)
-  nodes.visited <- rep(0,2)
-  confound.int <- NULL
-  min.J <- NULL
-  max.J <- NULL
-  
-  # iter_no = 1 for min, iter_no = 2 for max
-  for (iter_no in 1:2) {
-    print(paste0("Starting ", c("min","max")[iter_no], " (", Sys.time(), ")"))
-    # Root node
-    root <- new("Node", J = numeric(0), I = 1:max.depth, depth = 0, x.res = lm(x~1)$residuals,
-                y.res = lm(y~1)$residuals, I.res = calc.I.res(w, numeric(0), 1:max.depth))
-    root@I <- root@I[order(abs(cor(root@x.res, root@I.res) * cor(root@y.res, root@I.res)), decreasing = TRUE)]
-    current.best <- root@beta <- lm(root@y.res~root@x.res)$coef[2] * (-1)^(iter_no+1)
-    queue <- list(root)
-    while (length(queue) > 0) {
-      nodes.visited[iter_no] <- nodes.visited[iter_no] + 1
-      # Progress update
-      if (nodes.visited[iter_no] %% 2000 == 0) {
-        print(paste0("Progress (", Sys.time(), "): ", nodes.visited[iter_no], " visited. ", length(queue), " on stack."))
-      }
-      
-      # Take first node out of queue
-      current <- queue[[1]]
-      queue <- queue[-1]
-      
-      # Check to see if max.depth reached (leaf node)
-      if (current@depth == max.depth) {
-        next
-      }
-      
-      # Check to see if we should add child nodes to the queue
-      # Save x.res, y.res, and I.res (minus one column) for left child since it is the same
-      for (node in list(new("Node", J = c(current@J,current@I[1]), I = current@I[-1], depth = current@depth+1),
-                        new("Node", J = current@J, I = current@I[-1], beta = current@beta, depth = current@depth+1,
-                            x.res = current@x.res, y.res = current@y.res,
-                            I.res = if(current@depth < max.depth - 1) current@I.res[,-1, drop = FALSE]))) {
-        # Calculate x.res, y.res, and I.res for right child
-        if (is.null(node@beta)) {
-          node@x.res <- lm(x~., data = w[node@J])$residuals
-          node@y.res <- lm(y~., data = w[node@J])$residuals
-          node@I.res <- calc.I.res(w, node@J, node@I)
-        }
-        
-        # Calculate r2.wI.x, r2.wI.y
-        if (!is.null(node@I.res)) {
-          r2.wI.x <- summary(lm(node@x.res~., data = node@I.res))$r.squared
-          r2.wI.y <- summary(lm(node@y.res~., data = node@I.res))$r.squared
-        } else {
-          r2.wI.x <- 0
-          r2.wI.y <- 0
-        }
-        
-        # Confounding Interval
-        b <- suppressWarnings(f(cor(node@x.res,node@y.res), sd(node@y.res) / sd(node@x.res),
-                                0, r2.wI.x, 0, r2.wI.y, -1, 1))[iter_no] * (-1)^(iter_no+1)
-        if (b < current.best) {
-          # Calculate beta.x and update current.best if applicable
-          if (is.null(node@beta)) {
-            node@beta <- as.numeric(lm(node@y.res ~ node@x.res)$coef[2]) * (-1)^(iter_no+1)
-            if (current.best > node@beta) {
-              if (iter_no == 1) {
-                min.J <- node@J
-              } else {
-                max.J <- node@J
-              }
-            }
-            current.best <- min(current.best, node@beta)
-          }
-          
-          # Reorder I covariates
-          if (length(node@I) > 1) {
-            product <- abs(cor(node@x.res, node@I.res) * cor(node@y.res, node@I.res))
-            next.I <- which(product == max(product))
-            node@I <- c(node@I[next.I], node@I[-next.I])
-          }
-          
-          # Put node in queue if the lower bound is less than current.best
-          queue <- c(queue, node)
-        }
-      }
-    }
-    confound.int <- c(confound.int, current.best * (-1)^(iter_no+1))
-  }
-  end <- Sys.time()
-  print("------------------------")
-  print(paste0("Find min: ", nodes.visited[1], " of ", (2^(max.depth+1)-1), " nodes visited (", round(nodes.visited[1] / (2^(max.depth+1)-1) * 100,2), "%)"))
-  print(paste("Min vars:", paste(colnames(w)[sort(min.J)], collapse = ",")))
-  print("----------")
-  print(paste0("Find max: ", nodes.visited[2], " of ", (2^(max.depth+1)-1), " nodes visited (", round(nodes.visited[2] / (2^(max.depth+1)-1) * 100,2), "%)"))
-  print(paste("Max vars:", paste(colnames(w)[sort(max.J)], collapse = ",")))
-  print("----------")
-  print(paste(sum(nodes.visited), "total nodes visited."))
-  print(paste("Total Time elapsed:", as.numeric(difftime(end, start, units = "secs")), "seconds"))
-  print("------------------------")
-  return(confound.int)
-}
-
