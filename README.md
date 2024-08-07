@@ -1,5 +1,5 @@
 # Branch-and-Bound
-This repository provides open source software to support the methodologies of the paper "Branch and Bound to Assess Stability of Regression Coefficients in Uncertain Models" by Knaeble, Hughes, Rudolph, Abramson, and Razo
+This repository provides open source software to support the methodologies of the paper "Branch and Bound to Assess Stability of Regression Coefficients in Uncertain Models" by Knaeble, Hughes, Rudolph, Abramson, and Razo.
 
 In the file **"NHANES_07_12.csv"**, the data used for section 4 of the paper is provided. Information about how the data was wrangled and cleaned is given in both section 4 and Appendix B of the paper.
 
