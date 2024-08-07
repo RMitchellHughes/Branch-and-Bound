@@ -15,6 +15,6 @@ An example of how the function works is given in the file **"example.R"**. It as
 In the file **"BB_confound.py"**, two classes are found:
 - _Node class_, represents an individual model that our algorithm checks. It has parameters to store residuals of x, y, and z, as well as the subindices I_w and I_z.
 - _BB_confound class_, takes explanatory variable x, response variable y, and a matrix of covariates s as inputs. x and y should be pandas dataframes with one column. s is a pandas dataframe also. Returns the maximum and minimum slope coefficients for x over the space of all possible models. Use the print function for more details about runtimes, nodes checked, which models resulted in the max/min, etc.
-- A third class called ConfoundingInterval written by Mark Abramson and supplied by Brian Knaeble is used to compute the confounding intervals. To use this function, the file ConfoundingInterval.py should be in the working directory. It can be downloaded from https://github.com/bknaeble/ConfoundingIntervals/tree/master.
+- A third class called _ConfoundingInterval_ written by Mark Abramson and supplied by Brian Knaeble is used to compute the confounding intervals. To use this function, the file ConfoundingInterval.py should be in the working directory. It can be downloaded from https://github.com/bknaeble/ConfoundingIntervals/tree/master.
 
 An example of how the function works is given in the file **example.py**. It assumes that the files BB_confound.py, ConfoundingInterval.py and NHANES_07_12.csv are found in the working directory.
