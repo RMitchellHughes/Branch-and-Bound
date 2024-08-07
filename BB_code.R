@@ -5,14 +5,13 @@
 # See README for details
 
 # Helper function to calculate residuals of z
-calc.z.res <- function(s, I.w, I.z) { # I.w <- c(1,4)     # I.z <- c(2,3,5)
+calc.z.res <- function(s, I.w, I.z) {
   z.res <- matrix(nrow = nrow(s), ncol = length(I.z))
   if (length(I.w) == 0) { # Check for root node
     # Create matrix of residuals from centering vectors of z
     return(data.frame(apply(s,2,function(x) x - mean(x))))
   } else if (length(I.z) == 0) { # Check for leaf node
     return(data.frame(matrix(nrow = nrow(s), ncol = 0)))
-    # return(NULL)
   } else { # Intermediate node
     # Create matrix of residuals from regressing vectors of z onto span of w
     for (z in I.z) {
