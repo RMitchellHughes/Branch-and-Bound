@@ -21,7 +21,7 @@ for(var1 in 1:p) {
 # Eliminate interaction between racial indicator variables
 dat.s <- subset(dat.s, select = !(colnames(dat.s) %in% 'white_black'))
 
-# Run the BBR algorithm
+# Run the BB algorithm
 BB.confound(dat.x, dat.y, dat.s)
 
 # Note: Because the data set is large, it may take a while for the algorithm to finish.
