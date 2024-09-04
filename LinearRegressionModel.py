@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow_probability as tfp
 
 class LinearRegressionModel(tf.keras.Model):
     def __init__(self, A, b, calc_resid = False, calc_rsquared = False):
@@ -35,15 +34,6 @@ class LinearRegressionModel(tf.keras.Model):
         return self.resid
     
     def get_params(self, tol = 1e-8):
-        # x: solution vector
-        # r: residual vector
-        # s: gradient vector
-        # p: search direction (initialized as gradient)
-        # q: vector used to calculate alpha and residuals
-        # gamma: used to calculate alpha (step size)
-        # alpha: step size
-        # beta: adjusts search direction (how much of previous direction to include)
-
         n = self.A.get_shape()[1]
         x = tf.cast(tf.zeros([n,1]), self.A.dtype)
         r = self.b
