@@ -1,22 +1,22 @@
-# Branch-and-Bound
-This repository provides open source software to support the methodologies of the paper "Branch and Bound to Assess Stability of Regression Coefficients in Uncertain Models" by Knaeble, Hughes, Rudolph, Abramson, and Razo.
+# Branch-and-Bound-(Tensorflow-Implementation)
+This repository provides open source software to support the methodologies of the paper "Branch and Bound to Assess Stability of Regression Coefficients in Uncertain Models" by Knaeble, Hughes, Rudolph, Abramson, and Razo (see https://arxiv.org/abs/2408.09634).
 
-In the file **"NHANES_07_12.csv"**, the data used for section 4 of the paper is provided. Information about how the data was wrangled and cleaned is given in both section 4 and Appendix B of the paper.
+The current branch (Branch-and-Bound-(Tensorflow-Implementation)) is intented to showcase a Tensorflow adaptation to my original code (found in the main branch). More than anything, the Tensorflow version of the algorithm is intended to be a proof of concept rather than a heavily optimized algorithm. The main changes were the implementation of a linear regression model (utilizing conjugate gradient methods for least squares parameter estimation) and alterations to my original branch and bound code to to make use of that model.
 
-**R Code:**
+**Disclaimer:** This is intended to be a seperate yet complimentary project to the original paper found above. More information about the original algorithm and dataset used can be found in the paper.
 
-In the file **"BB_code.R"**, three functions are found:
-- _calc.z.res_, this function returns the matrix of residuals from regressing each vector in z onto the span of w.
-- _f_, this function computes the confounding intervals. It was written by Mark Abramson and supplied by Brian Knaeble with more details at https://github.com/bknaeble/ConfoundingIntervals/tree/master.
-- _BB.confound_, this function is our branch and bound algorithm. It also takes an explanatory vector x, a response vector y, and a matrix of covariates s as inputs. It returns the maximum and minimum slope coefficients for x over the space of all possible models.
+**File Details:**
 
-An example of how the function works is given in the file **"example.R"**. It assumes that the functions from BB_code.R have been loaded and the file NHANES_07_12.csv is found in the working directory.
+The dataset is given in the **"NHANES_07_12.csv"** file. The example application uses this dataset.
 
-**Python Code:**
-
-In the file **"BB_confound.py"**, two classes are found:
+In the file **"BB_confound_tf.py"**, two classes are found:
 - _Node class_, represents an individual model that our algorithm checks.
-- _BB_confound class_, takes explanatory variable x, response variable y, and a matrix of covariates s as inputs. x and y should be pandas dataframes with one column. s is a pandas dataframe also. Returns the maximum and minimum slope coefficients for x over the space of all possible models. Use the print function for more details about runtimes, nodes checked, which models resulted in the max/min, etc.
-- A third class called _ConfoundingInterval_ written by Mark Abramson and supplied by Brian Knaeble is used to compute the confounding intervals. To use this function, the file ConfoundingInterval.py should be in the working directory. It can be downloaded from https://github.com/bknaeble/ConfoundingIntervals/tree/master.
+- _BB_confound class_, takes explanatory variable x, response variable y, and a matrix of covariates s as inputs. x and y should be pandas dataframes with one column. s is a pandas dataframe also with multiple columns. Returns the maximum and minimum slope coefficients for x over the space of all possible models. Use the print function for more details about runtimes, nodes checked, which models resulted in the max/min, etc.
 
-An example of how the function works is given in the file **example.py**. It assumes that the files BB_confound.py, ConfoundingInterval.py and NHANES_07_12.csv are found in the working directory.
+In the file **"LinearRegressionModel.py"**, one class is found:
+- _LinearRegressionModel class_, represents a linear regression model. Takes an mxn tensorflow tensor of features (the intercept column of ones is added automatically) and a mx1 tensorflow tensor of the target variable. Will estimate least squares parameters via the conjugate gradient method, calculate residuals, and calculate coefficient of determination upon request (parameter estimation is the only thing done automatically).
+
+One more class is required to run the code:
+- A final class called _ConfoundingInterval_ written by Mark Abramson and supplied by Brian Knaeble is used to compute the confounding intervals. To use the method from this class, the file ConfoundingInterval.py should be in the working directory. It can be downloaded from https://github.com/bknaeble/ConfoundingIntervals/tree/master.
+
+An example of how the function works is given in the file **example_tf.py**. It assumes that the files BB_confound_tf.py, LinearRegressionModel.py, ConfoundingInterval.py and NHANES_07_12.csv are found in the working directory.
